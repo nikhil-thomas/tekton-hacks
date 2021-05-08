@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1alpha1
+kind: TaskRun
+metadata:
+  generateName: context-variables-
+spec:
+  taskSpec:
+    steps:
+    - image: ubuntu
+      name: print-uid
+      script: |
+        echo "TaskRunUID name: $(context.taskRun.uid)"
+    - image: ubuntu
+      name: print-names
+      script: |
+        echo "Task name: $(coSntext.task.name)"
+        echo "TaskRun name: $(context.taskRun.name)"

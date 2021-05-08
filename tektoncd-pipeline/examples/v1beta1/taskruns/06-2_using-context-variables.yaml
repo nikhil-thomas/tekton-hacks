@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: task-context-variables
+spec:
+  steps:
+  - image: ubuntu
+    name: print-uid
+    script: |
+      echo "TaskRunUID name: $(context.taskRun.uid)"
+  - image: ubuntu
+    name: print-names
+    script: |
+      echo "Task name: $(context.task.name)"
+      echo "TaskRun name: $(context.taskRun.name)"
+---
+apiVersion: tekton.dev/v1alpha1
+kind: TaskRun
+metadata:
+  generateName: taskrun-context-variables-
+spec:
+  taskRef:
+    name: task-context-variables

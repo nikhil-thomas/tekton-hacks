@@ -1,0 +1,20 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: steps-run-in-order-
+spec:
+  taskSpec:
+    steps:
+      - image: ubuntu
+        script: |
+          #!/usr/bin/env bash
+
+          pwd
+          sleep 3
+          touch foo
+      - image: busybox
+        args: ['-c', 'ls', 'foo']
+      - image: busybox
+        script: |
+          #!/bin/sh
+          echo hello world!
