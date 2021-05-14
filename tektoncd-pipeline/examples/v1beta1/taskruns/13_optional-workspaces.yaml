@@ -1,0 +1,29 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: optional-workspaces-
+spec:
+  workspaces:
+  - name: source-code
+    emptyDir: {}
+  taskSpec:
+    workspaces:
+    - name: source-code
+      optional: true
+    - name: extra-config
+      optional: true
+    steps:
+    - name: check-workspaces
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        set -xe
+
+        if [[ "$(workspaces.source-code.bound)" == "true" ]]; then
+          printf "Source code workspace was provided at %s\n" "$(workspaces.source-code.path)"
+        fi
+        if [[ "$(workspaces.extra-config.bound)" == "true" ]]; then
+          printf "Extra configuration workspace was provided at %s\n" "$(workspaces.source-code.path)"
+        else
+          printf "Extra configuration workspace was not provided\n"
+        fi
