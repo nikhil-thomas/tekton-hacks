@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  resources:
+    requests:
+      storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+data:
+  message: hello world
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type:
+  Opaque
+stringData:
+  username: user
+data:
+  message: aGVsbG8gc2VjcmV0
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: workspaces-task
+spec:
+  workspaces:
+  - name: workspace1
+  - name: workspace2
+    mountPath: /foo/bar/baz
+  - name: workspace3
+  - name: workspace4
+    mountPath: /baz/bar/quux
+  - name: workspace5
+    mountPath: /my/secret/file
+  steps:
+  - name: write-1
+    image: ubuntu
+    script: |
+      echo $(workspaces.workspace1.volume) | tee $(workspaces.workspace1.path)/foo
+  - name: read-1
+    image: ubuntu
+    script: |
+      cat $(workspaces.workspace1.path)/foo
+      grep $(workspaces.workspace1.volume) $(workspaces.workspace1.path)/foo
+      ls $(workspaces.workspace2.path)
+      cat $(workspaces.workspace2.path)/my-subdir/foo
+  - name: write-2
+    image: ubuntu
+    script: echo $(workspaces.workspace2.path) | tee $(workspaces.workspace2.path)/foo
+  - name: read-2
+    image: ubuntu
+    script: cat $(workspaces.workspace2.path)/foo | grep -n $(workspaces.workspace2.path)
+  - name: write-3
+    image: ubuntu
+    script: |
+      echo $(workspaces.workspace3.path) | tee $(workspaces.workspace3.path)/foo
+  - name: read-3
+    image: ubuntu
+    script: |
+      grep -n $(workspaces.workspace3.path) $(workspaces.workspace3.path)/foo
+  - name: read-configmap
+    image: ubuntu
+    script: |
+      grep -n "hello world" $(workspaces.workspace4.path)/my-message.txt
+  - name: read-secret
+    image: ubuntu
+    script: |
+      #!/usr/bin/env bash
+      set -xe
+
+      grep -n "user" $(workspaces.workspace5.path)/username
+      grep -n "hello secret" $(workspaces.workspace5.path)/message
+  - name: wait-1
+    image: ubuntu
+    script: |
+      sleep 1800
+---
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: workspaces-tr-
+spec:
+  workspaces:
+  - name: workspace1
+    persistentVolumeClaim:
+      claimName: my-pvc
+    subPath: my-subdir
+  - name: workspace2
+    persistentVolumeClaim:
+      claimName: my-pvc
+  - name: workspace3
+    emptyDir: {}
+    subPath: testing
+  - name: workspace4
+    configMap:
+      name: my-configmap
+      items:
+      - key: message
+        path: my-message.txt
+  - name: workspace5
+    secret:
+      secretName: my-secret
+  taskRef:
+    name: workspaces-task
