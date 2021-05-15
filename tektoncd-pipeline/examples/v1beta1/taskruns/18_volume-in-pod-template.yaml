@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: volume-in-pod-template-
+spec:
+  taskSpec:
+    steps:
+    - name: write
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        echo some stuff | tee /im/a/custom/mount/path/file
+      volumeMounts:
+      - name: custom
+        mountPath: /im/a/custom/mount/path
+    - name: read
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        cat /short/and/stout/file
+      volumeMounts:
+      - name: custom
+        mountPath: /short/and/stout
+  podTemplate:
+    volumes:
+    - name: custom
+      emptyDir: {}

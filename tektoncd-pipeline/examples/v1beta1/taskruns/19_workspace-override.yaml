@@ -1,0 +1,26 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: workspace-override-tr-
+spec:
+  taskSpec:
+    steps:
+    - name: write
+      image: ubuntu
+      script: echo some stuff | tee /workspace/file
+    - name: read
+      image: ubuntu
+      script: cat /workspace/file
+    - name: read-2
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        pwd
+        ls /workspace
+        [[ ! -f /workspace/file ]]
+      volumeMounts:
+      - name: custom
+        mountPath: /workspace
+    volumes:
+    - name: custom
+      emptyDir: {}
