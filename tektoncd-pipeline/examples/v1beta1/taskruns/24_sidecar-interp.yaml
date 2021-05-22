@@ -1,0 +1,41 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: sidecar-interp-
+spec:
+  taskSpec:
+    params:
+    - name: some-input
+      default: foo
+    volumes:
+    - name: shared
+      emptyDir: {}
+    sidecars:
+    - name: value-sidecar
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+
+        echo $(params.some-input) | tee /shared/value
+        sleep infinity
+      volumeMounts:
+      - name: shared
+        mountPath: /shared
+    steps:
+    - name: check-value
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        VALUE=$(cat /shared/value)
+        echo $VALUE
+        echo $(params.some-input)
+        until [[ -f /shared/value ]]; do
+          echo value is missing
+          sleep 1
+        done
+        ls /shared
+        VALUE=$(cat /shared/value)
+        [[ $VALUE == 'foo' ]]
+      volumeMounts:
+      - name: shared
+        mountPath: /shared
