@@ -1,0 +1,67 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: dind-sidecar-
+spec:
+  taskSpec:
+    steps:
+    - image: docker
+      name: client
+      env:
+      - name: DOCKER_HOST
+        value: tcp://localhost:2376
+      - name: DOCKER_TLS_VERIFY
+        value: '1'
+      - name: DOCKER_CERT_PATH
+        value: /certs/client
+      workingDir: /workspace
+      script: |
+        #!/usr/bin/env sh
+        set -e
+
+        # Run a Docker container
+        docker run busybox echo hello
+
+        # Write a Dockerfile and `docker build it.
+        cat > Dockerfile <<EOF
+        FROM ubuntu
+        RUN apt-get update
+        ENTRYPOINT ["echo", "hello"]
+        EOF
+        docker build -t hello .
+        docker images
+
+        # then run the image
+        docker run hello
+      volumeMounts:
+        - name: dind-certs
+          mountPath: /certs/client
+    sidecars:
+      - name: server
+        image: docker:dind
+        args:
+        - --storage-driver=vfs
+        - --userland-proxy=false
+        - --debug
+        resources:
+          requests:
+            memory: "256Mi"
+        securityContext:
+          privileged: true
+        env:
+        # Write generated certs to a path shared with the client
+        - name: DOCKER_TLS_CERTDIR
+          value: /certs
+        volumeMounts:
+        - name: dind-certs
+          mountPath: /certs/client
+        # wait for the dind daemon to generate the certs it will share with the client
+        readinessProbe:
+          periodSeconds: 1
+          exec:
+            command:
+            - 'ls'
+            - '/certs/client/ca.pem'
+    volumes:
+      - name: dind-certs
+        emptyDir: {}

@@ -1,0 +1,64 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: steptemplate-env-merge-
+spec:
+  params:
+  - name: FOO
+    value: foo
+  - name: BAR
+    value: bar
+  taskSpec:
+    stepTemplate:
+      env:
+      - name: QUX
+        value: original
+    params:
+      - name: FOO
+        description: FOO variable
+      - name: BAR
+        description: BAR variable
+      - name: FOOBAR
+        description: FOOBAR variable
+        default: foobar
+    steps:
+    # test whether the env vars are test in the task
+    - name: foo
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        [[ $FOO == "foo" ]]
+      env:
+      - name: FOO
+        value: $(params.FOO)
+    - name: foobar
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        [[ $FOOBAR == "foobar" ]]
+      env:
+      - name: FOOBAR
+        value: $(params.FOOBAR)
+    - name: bar
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        [[ $BAR == "bar" ]]
+      env:
+      - name: BAR
+        value: $(params.BAR)
+    # Use the env var from step template
+    - name: qux-no-override
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        [[ $QUX == "original" ]]
+    # override the variable in stepTemplate
+    - name: qux-override
+      image: ubuntu
+      script: |
+        #!/usr/bin/env bash
+        [[ $QUX == "override" ]]
+      env:
+      - name: QUX
+        value: override
