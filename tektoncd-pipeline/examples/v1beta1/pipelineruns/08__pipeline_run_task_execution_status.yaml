@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: pr-execution-status-
+spec:
+  serviceAccountName: default
+  pipelineSpec:
+    tasks:
+    - name: task1 # successful task
+      taskSpec:
+        steps:
+        - name: hello
+          image: ubuntu
+          script: |
+            echo "Hello World!"
+    - name: task2 # skpeed task
+      when:
+      - input: "true"
+        operator: "notin"
+        values:
+        - "true"
+      taskSpec:
+        steps:
+        - name: success
+          image: ubuntu
+          script: |
+            exit 0
+    finally:
+    - name: task3
+      params:
+      - name: task1Status
+        value: "$(tasks.task1.status)"
+      - name: task2Status
+        value: "$(tasks.task2.status)"
+      taskSpec:
+        params:
+        - name: task1Status
+        - name: task2Status
+        steps:
+        - name: verify-dag-task-status
+          image: alpine
+          script: |
+            echo $(params.task1Status)
+            echo $(params.task2Status)
+            if [[ $(params.task1Status) != "Succeeded" || $(params.task2Status) != "None" ]]; then
+              exit 1;
+            fi         
+
+        
